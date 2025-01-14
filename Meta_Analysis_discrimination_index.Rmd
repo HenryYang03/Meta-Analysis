@@ -1,0 +1,298 @@
+---
+title: "Meta_Analysis_discrimination_index"
+output: html_document
+date: "2024-08-06"
+---
+
+```{r}
+library(meta)
+library(metafor)
+library(metasens)
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(netmeta)
+library(igraph)
+```
+
+#### Discrimination Index
+##### Import dataset
+```{r}
+data_dir <- "/Users/mohanyang/Desktop/Meta-Analysis/Notes and data for listed articles"
+subdirs <- list.dirs(data_dir, recursive = FALSE)
+
+control_data_discrimination_index <- data.frame()
+treatment_data_discrimination_index <- data.frame()
+
+for (subdir in subdirs) {
+  # Define the path to the Ab protein deposition file
+  discrimination_index_file_path <- file.path(subdir, "Long_format_discrimination_index.xlsx")
+  
+  # Check if the file exists
+  if (file.exists(discrimination_index_file_path)) {
+    # Read the data from the file
+    data_discrimination_index_single <- read_excel(discrimination_index_file_path)
+  
+  # State control groups and treatment groups
+  control_groups <- c("5xFAD", "5xFAD+shWnt5a", "APP/PS1", "5xFAD/3xTg", "3xTg", "cDKO")
+  treatment_groups <- c("5xFAD+EA", "5xFAD+shWnt5a+EA", "APP/PS1+EA", "5xFAD/3xTg+EA", "APP/PS1+MA", "3xTg+EA", "cDKO+EA")
+    
+  # Filter data for control and treatment groups
+  control_discrimination_index_single <- data_discrimination_index_single %>% filter(treatment_group %in% control_groups)
+  treatment_discrimination_index_single <- data_discrimination_index_single %>% filter(treatment_group %in% treatment_groups)
+    
+  # Append the data to the respective data frames
+  control_data_discrimination_index <- rbind(control_data_discrimination_index, control_discrimination_index_single)
+  treatment_data_discrimination_index <- rbind(treatment_data_discrimination_index, treatment_discrimination_index_single)
+  }
+}
+```
+
+```{r}
+control_data_discrimination_index
+```
+
+```{r}
+treatment_data_discrimination_index
+```
+
+#####  Get the difference data between the base group and control group
+```{r}
+# Modify the treatment_group in the treatment data to remove "+EA" for inner join purpose
+treatment_data_discrimination_index <- treatment_data_discrimination_index %>%
+  mutate(treatment_group = gsub("\\+EA", "", treatment_group))
+
+# Use inner_join to merge the data frames by paper_id, treatment_group, and brain_area
+merged_data_discrimination_index <- inner_join(control_data_discrimination_index, treatment_data_discrimination_index, 
+                          by = c("paper_id", "treatment_group", "age(month)", "hour"), 
+                          suffix = c("_control", "_treatment"))
+
+smd_data_discrimination_index  <- merged_data_discrimination_index %>% 
+  mutate(
+    sd_pooled = sqrt(((sample_size_control - 1) * sd_control^2 +
+                      (sample_size_treatment - 1) * sd_treatment^2) /
+                     (sample_size_control + sample_size_treatment - 2)),
+    
+    smd = (mean_treatment - mean_control) / sd_pooled,
+    
+    se_smd = sqrt((sample_size_control + sample_size_treatment) /
+                  (sample_size_control * sample_size_treatment) +
+                  (smd^2) / (2 * (sample_size_control + sample_size_treatment)))
+  ) %>%
+  select(paper_id, treatment_group, 'age(month)', acupoint_treatment, hour, smd, se_smd)
+```
+
+```{r}
+smd_data_discrimination_index <- smd_data_discrimination_index[
+  order(as.numeric(as.character(smd_data_discrimination_index$paper_id))), 
+]
+
+smd_data_discrimination_index
+```
+
+```{r}
+Testing_After_1hour_or_24hour_discrimination_index_data <- smd_data_discrimination_index %>% filter(hour == 24 | hour == 1)
+```
+
+```{r}
+Testing_After_1hour_or_24hour_discrimination_index_data
+```
+
+
+##### All difference
+#####  Use Meta-Analysis package
+```{r}
+meta_analysis_discrimination_index <- metagen(
+  smd, 
+  se_smd, 
+  data = smd_data_discrimination_index,
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, hour, sep = "  |  "),
+  sm = "SMD",
+  method.tau = "DL",   
+  comb.fixed = FALSE,  
+  comb.random = TRUE
+)
+summary(meta_analysis_discrimination_index)
+```
+
+```{r}
+forest(meta_analysis_discrimination_index,
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("studlab", "effect", "ci"),
+       leftlabs = c("Paper id | Control Group | Age(month) | Acupoint | hour", "SMD", "95% CI"),
+       colgap.left = "8mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+```
+
+```{r}
+funnel(meta_analysis_discrimination_index,
+       xlab = "Standardised Mean Difference",
+       ylab = "Standard Error",
+       col = "blue",
+       bg = "lightblue",
+       pch = 21, # Use filled circles
+       cex = 1.5) # Increase point size
+```
+```{r}
+Testing_After_1hour_or_24hour_discrimination_index_data <- Testing_After_1hour_or_24hour_discrimination_index_data[
+  order(as.numeric(as.character(Testing_After_1hour_or_24hour_discrimination_index_data$paper_id))), 
+]
+```
+
+
+##### Testing (hours 24 or 1), eliminate training (hour = 0)
+#####  Use Meta-Analysis package
+```{r}
+meta_analysis_discrimination_index_hour24_or_1 <- metagen(
+  smd, 
+  se_smd, 
+  data = Testing_After_1hour_or_24hour_discrimination_index_data,
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, hour, sep = "  |  "),
+  sm = "SMD",
+  method.tau = "DL",   
+  comb.fixed = FALSE,  
+  comb.random = TRUE
+)
+summary(meta_analysis_discrimination_index_hour24_or_1)
+```
+
+```{r}
+forest(meta_analysis_discrimination_index_hour24_or_1,
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("studlab", "effect", "ci"),
+       leftlabs = c("Paper id | Control Group | Age(month) | Acupoint | hour", "SMD", "95% CI"),
+       colgap.left = "8mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+```
+
+```{r}
+funnel(meta_analysis_discrimination_index_hour24_or_1,
+       xlab = "Standardised Mean Difference",
+       ylab = "Standard Error",
+       col = "blue",
+       bg = "lightblue",
+       pch = 21, # Use filled circles
+       cex = 1.5) # Increase point size
+```
+
+```{r}
+metabias(meta_analysis_discrimination_index_hour24_or_1, method.bias = "linreg")
+```
+```{r}
+trimfill(meta_analysis_discrimination_index_hour24_or_1)
+```
+#### Network Meta-Analysis
+
+```{r}
+Testing_After_1hour_or_24hour_discrimination_index_data <- Testing_After_1hour_or_24hour_discrimination_index_data %>%
+  mutate(unique_id = paste(paper_id, treatment_group, acupoint_treatment, `age(month)`, hour, sep = "_"))
+Testing_After_1hour_or_24hour_discrimination_index_data
+```
+
+```{r}
+netconnection(
+  treat1 = Testing_After_1hour_or_24hour_discrimination_index_data$acupoint_treatment,
+  treat2 = Testing_After_1hour_or_24hour_discrimination_index_data$treatment_group,
+  studlab = Testing_After_1hour_or_24hour_discrimination_index_data$unique_id
+)
+```
+
+```{r}
+Testing_After_1hour_or_24hour_discrimination_index_data <- Testing_After_1hour_or_24hour_discrimination_index_data %>%
+  mutate(treatment_group = "No Acupoint")
+
+netmeta_analysis <- netmeta(
+  TE = Testing_After_1hour_or_24hour_discrimination_index_data$smd,              # Treatment effect (SMD)
+  seTE = Testing_After_1hour_or_24hour_discrimination_index_data$se_smd,  # Standard error of the treatment effect
+  treat1 = Testing_After_1hour_or_24hour_discrimination_index_data$acupoint_treatment,       # The acupoints (treatment)
+  treat2 = Testing_After_1hour_or_24hour_discrimination_index_data$treatment_group,          # The comparator (control groups)
+  studlab = Testing_After_1hour_or_24hour_discrimination_index_data$unique_id,               # Study ID
+  sm = "SMD",                                                                                # Standardized Mean Difference
+  reference.group = "No Acupoint",
+  details.chkmultiarm = TRUE
+)
+```
+
+```{r}
+summary(netmeta_analysis)
+```
+
+
+```{r}
+# Plot the network graph
+netgraph(netmeta_analysis)
+
+# Create a forest plot for the network meta-analysis results
+forest(netmeta_analysis)
+```
+
+```{r}
+netsplit_result <- netsplit(netmeta_analysis)
+pdf("Discrimination_index_netsplit_forestplot.pdf", width = 9, height = 12) 
+forest(netsplit_result, show = "all")
+dev.off()
+```
+
+
+```{r}
+# Prepare direct edges (those involving "No Acupoint")
+edges_direct <- data.frame(
+  from = gsub(":.*", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),
+  to = gsub(".*:", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),
+  weight = 1 / netsplit_result$direct.common[grep("No Acupoint", netsplit_result$comparison), "seTE"],
+  type = "direct"
+)
+
+# Prepare indirect edges (those NOT involving "No Acupoint")
+edges_indirect <- data.frame(
+  from = gsub(":.*", "", netsplit_result$comparison[!grepl("No Acupoint", netsplit_result$comparison)]),
+  to = gsub(".*:", "", netsplit_result$comparison[!grepl("No Acupoint", netsplit_result$comparison)]),
+  weight = 1 / netsplit_result$indirect.common[!grepl("No Acupoint", netsplit_result$comparison), "seTE"],
+  type = "indirect"
+)
+
+# Combine the direct and indirect edges into one dataframe
+edges <- rbind(edges_direct, edges_indirect)
+
+# Remove any NA values
+edges <- edges[!is.na(edges$weight), ]
+
+# Create graph object using edges
+net_graph <- graph_from_data_frame(edges, directed = FALSE)
+
+# Adjust edge colors and line types based on edge type
+E(net_graph)$color <- ifelse(edges$type == "direct", "darkblue", "lightblue")
+E(net_graph)$lty <- ifelse(edges$type == "direct", 1, 3)
+
+# Add curvature to the edges for aesthetic purposes
+E(net_graph)$curved <- rep(0.2, length(E(net_graph)))
+
+plot(
+  net_graph,
+  vertex.label = V(net_graph)$name,
+  vertex.label.dist = 2.5,
+  vertex.label.font = 4,
+  vertex.color = "lightblue",
+  vertex.size = 12,
+  vertex.label.cex = 0.8,
+  vertex.label.color = "black",
+  edge.width = E(net_graph)$weight,
+  edge.color = E(net_graph)$color,
+  edge.lty = E(net_graph)$lty,
+  edge.curved = rep(0.1, length(E(net_graph))),
+)
+
+legend(
+  "bottomright",  
+  legend = c("Direct Relationship", "Indirect Relationship"),
+  col = c("darkblue", "lightblue"),
+  lty = c(1, 3),
+  lwd = 3,
+  cex = 0.8,
+  bty = "n"
+)
+```

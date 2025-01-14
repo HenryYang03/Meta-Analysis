@@ -1,0 +1,249 @@
+---
+title: "Meta_Analysis_time_spent_in_target_quadrant"
+output:
+  html_document: default
+  pdf_document: default
+date: "2024-08-06"
+---
+```{r}
+library(meta)
+library(metafor)
+library(metasens)
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(netmeta)
+library(igraph)
+```
+
+#### Time Spend in target quadrant
+##### Import dataset
+```{r}
+data_dir <- "/Users/mohanyang/Desktop/Meta-Analysis/Notes and data for listed articles"
+subdirs <- list.dirs(data_dir, recursive = FALSE)
+
+control_data_time_spend_in_target_quadrant <- data.frame()
+treatment_data_time_spend_in_target_quadrant <- data.frame()
+
+for (subdir in subdirs) {
+  # Define the path to the Ab protein deposition file
+  time_spend_in_target_quadrant_file_path <- file.path(subdir, "Long_format_time_spend_in_target_quadrant(sec).xlsx")
+  
+  # Check if the file exists
+  if (file.exists(time_spend_in_target_quadrant_file_path)) {
+    # Read the data from the file
+    data_time_spend_in_target_quadrant_single <- read_excel(time_spend_in_target_quadrant_file_path)
+  
+  # State control groups and treatment groups
+  control_groups <- c("5xFAD", "5xFAD+shWnt5a", "APP/PS1", "5xFAD/3xTg", "3xTg", "cDKO")
+  treatment_groups <- c("5xFAD+EA", "5xFAD+shWnt5a+EA", "APP/PS1+EA", "5xFAD/3xTg+EA", "APP/PS1+MA", "3xTg+EA", "cDKO+EA")
+    
+  # Filter data for control and treatment groups
+  control_time_spend_in_target_quadrant_single <- data_time_spend_in_target_quadrant_single %>% filter(treatment_group %in% control_groups)
+  treatment_time_spend_in_target_quadrant_single <- data_time_spend_in_target_quadrant_single %>% filter(treatment_group %in% treatment_groups)
+    
+  # Append the data to the respective data frames
+  control_data_time_spend_in_target_quadrant <- rbind(control_data_time_spend_in_target_quadrant, control_time_spend_in_target_quadrant_single)
+  treatment_data_time_spend_in_target_quadrant <- rbind(treatment_data_time_spend_in_target_quadrant, treatment_time_spend_in_target_quadrant_single)
+  }
+}
+```
+
+```{r}
+control_data_time_spend_in_target_quadrant
+```
+
+```{r}
+treatment_data_time_spend_in_target_quadrant
+```
+
+#####  Get the difference data between the base group and control group
+```{r}
+# Modify the treatment_group in the treatment data to remove "+EA" for inner join purpose
+treatment_data_time_spend_in_target_quadrant <- treatment_data_time_spend_in_target_quadrant %>%
+  mutate(treatment_group = gsub("\\+EA", "", treatment_group))
+
+# Use inner_join to merge the data frames by paper_id, treatment_group, and brain_area
+merged_data_time_spend_in_target_quadrant <- inner_join(control_data_time_spend_in_target_quadrant, treatment_data_time_spend_in_target_quadrant, 
+                          by = c("paper_id", "treatment_group", "age(month)"), 
+                          suffix = c("_control", "_treatment"))
+
+smd_data_time_spend_in_target_quadrant  <- merged_data_time_spend_in_target_quadrant %>% 
+  mutate(
+    
+    sd_pooled = sqrt(((sample_size_control - 1) * sd_control^2 +
+                      (sample_size_treatment - 1) * sd_treatment^2) /
+                     (sample_size_control + sample_size_treatment - 2)),
+    
+    smd = (mean_treatment - mean_control) / sd_pooled,
+    
+    se_smd = sqrt((sample_size_control + sample_size_treatment) /
+                  (sample_size_control * sample_size_treatment) +
+                  (smd^2) / (2 * (sample_size_control + sample_size_treatment)))
+  ) %>%
+  select(paper_id, treatment_group, 'age(month)', acupoint_treatment, smd, se_smd)
+```
+
+```{r}
+smd_data_time_spend_in_target_quadrant <- smd_data_time_spend_in_target_quadrant[
+  order(as.numeric(as.character(smd_data_time_spend_in_target_quadrant$paper_id))), 
+]
+
+smd_data_time_spend_in_target_quadrant
+```
+
+#####  Use Meta-Analysis package
+```{r}
+meta_analysis_time_spend_in_target_quadrant <- metagen(
+  smd, 
+  se_smd, 
+  data = smd_data_time_spend_in_target_quadrant,
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, sep = "  |  "),
+  sm = "SMD",
+  method.tau = "DL",   
+  comb.fixed = FALSE,  
+  comb.random = TRUE
+)
+summary(meta_analysis_time_spend_in_target_quadrant)
+```
+
+```{r}
+forest(meta_analysis_time_spend_in_target_quadrant,
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("studlab", "effect", "ci"),
+       leftlabs = c("Paper id | Control Group | Age(month) | Acupoint", "SMD", "95% CI"),
+       colgap.left = "8mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+```
+
+```{r}
+funnel(meta_analysis_time_spend_in_target_quadrant,
+       xlab = "Standardised Mean Difference",
+       ylab = "Standard Error",
+       col = "blue",
+       bg = "lightblue",
+       pch = 21, # Use filled circles
+       cex = 1.5) # Increase point size
+```
+
+```{r}
+metabias(meta_analysis_time_spend_in_target_quadrant, method.bias = "linreg")
+```
+
+```{r}
+trimfill(meta_analysis_time_spend_in_target_quadrant)
+```
+
+#### Network Meta-Analysis
+```{r}
+smd_data_time_spend_in_target_quadrant <- smd_data_time_spend_in_target_quadrant %>%
+  mutate(unique_id = paste(paper_id, treatment_group, acupoint_treatment, `age(month)`, sep = "_"))
+smd_data_time_spend_in_target_quadrant
+```
+
+```{r}
+netconnection(
+  treat1 = smd_data_time_spend_in_target_quadrant$acupoint_treatment,
+  treat2 = smd_data_time_spend_in_target_quadrant$treatment_group,
+  studlab = smd_data_time_spend_in_target_quadrant$paper_id
+)
+```
+
+```{r}
+smd_data_time_spend_in_target_quadrant <- smd_data_time_spend_in_target_quadrant %>%
+  mutate(treatment_group = "No Acupoint")
+
+netmeta_analysis <- netmeta(
+  TE = smd_data_time_spend_in_target_quadrant$smd,                          # Treatment effect (SMD)
+  seTE = smd_data_time_spend_in_target_quadrant$se_smd,                     # Standard error of the treatment effect
+  treat1 = smd_data_time_spend_in_target_quadrant$acupoint_treatment,       # The acupoints (treatment)
+  treat2 = smd_data_time_spend_in_target_quadrant$treatment_group,          # The comparator (control groups)
+  studlab = smd_data_time_spend_in_target_quadrant$unique_id,               # Study ID
+  sm = "SMD",                                                               # Standardized Mean Difference
+  reference.group = "No Acupoint",
+  details.chkmultiarm = TRUE
+)
+```
+
+```{r}
+summary(netmeta_analysis)
+```
+
+
+```{r}
+# Plot the network graph
+netgraph(netmeta_analysis)
+
+# Create a forest plot for the network meta-analysis results
+forest(netmeta_analysis)
+```
+
+```{r}
+netsplit_result <- netsplit(netmeta_analysis)
+pdf("Time_spent_in_target_quadrant_netsplit_forestplot.pdf", width = 9, height = 23) 
+forest(netsplit_result, show = "all")
+```
+
+
+```{r}
+# Prepare direct edges (those involving "No Acupoint")
+edges_direct <- data.frame(
+  from = gsub(":.*", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),
+  to = gsub(".*:", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),
+  weight = 1 / netsplit_result$direct.common[grep("No Acupoint", netsplit_result$comparison), "seTE"],
+  type = "direct"
+)
+
+# Prepare indirect edges (those NOT involving "No Acupoint")
+edges_indirect <- data.frame(
+  from = gsub(":.*", "", netsplit_result$comparison[!grepl("No Acupoint", netsplit_result$comparison)]),
+  to = gsub(".*:", "", netsplit_result$comparison[!grepl("No Acupoint", netsplit_result$comparison)]),
+  weight = 1 / netsplit_result$indirect.common[!grepl("No Acupoint", netsplit_result$comparison), "seTE"],
+  type = "indirect"
+)
+
+# Combine the direct and indirect edges into one dataframe
+edges <- rbind(edges_direct, edges_indirect)
+
+# Remove any NA values
+edges <- edges[!is.na(edges$weight), ]
+
+# Create graph object using edges
+net_graph <- graph_from_data_frame(edges, directed = FALSE)
+
+# Adjust edge colors and line types based on edge type
+E(net_graph)$color <- ifelse(edges$type == "direct", "darkblue", "lightblue")
+E(net_graph)$lty <- ifelse(edges$type == "direct", 1, 3)
+
+# Add curvature to the edges for aesthetic purposes
+E(net_graph)$curved <- rep(0.2, length(E(net_graph)))
+
+plot(
+  net_graph,
+  vertex.label = V(net_graph)$name,
+  vertex.label.dist = 2.5,
+  vertex.label.font = 4,
+  vertex.color = "lightblue",
+  vertex.size = 12,
+  vertex.label.cex = 0.8,
+  vertex.label.color = "black",
+  edge.width = E(net_graph)$weight,
+  edge.color = E(net_graph)$color,
+  edge.lty = E(net_graph)$lty,
+  edge.curved = rep(0.1, length(E(net_graph))),
+)
+
+legend(
+  "bottomright",  
+  legend = c("Direct Relationship", "Indirect Relationship"),
+  col = c("darkblue", "lightblue"),
+  lty = c(1, 3),
+  lwd = 3,
+  cex = 0.8,
+  bty = "n"
+)
+```
+
+
