@@ -13,6 +13,8 @@ library(readxl)
 library(ggplot2)
 library(netmeta)
 library(igraph)
+library(dmetar)
+library(Cairo)
 ```
 
 #### GFAP
@@ -107,14 +109,29 @@ summary(meta_analysis_GFAP)
 ```
 
 ```{r}
+postscript("GFAP_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(meta_analysis_GFAP,
        studlab = TRUE,
        textpos = 4,
-       leftcols = c("studlab", "effect", "ci"),
-       leftlabs = c("Paper id | Control Group | age(month) | Brain area", "SMD", "95% CI"),
-       colgap.left = "8mm",
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "area", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "brain area", "SMD", "95% CI"),
+       colgap.left = "5mm",
        rightcols = c("w.random"),
        rightlabs = c("Weight"))
+```
+
+##### Outliers
+
+```{r}
+find.outliers(meta_analysis_GFAP)
+```
+
+```{r}
+meta_analysis_GFAP.inf <- InfluenceAnalysis(meta_analysis_GFAP, random = TRUE)
+
+plot(meta_analysis_GFAP.inf, "baujat")
+plot(meta_analysis_GFAP.inf, "es")
+plot(meta_analysis_GFAP.inf, "i2")
 ```
 
 ```{r}
@@ -167,6 +184,7 @@ summary(netmeta_analysis)
 netgraph(netmeta_analysis)
 
 # Create a forest plot for the network meta-analysis results
+postscript("GFAP_network_forest_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(netmeta_analysis)
 ```
 
@@ -179,6 +197,7 @@ dev.off()
 
 
 ```{r}
+cairo_ps("GFAP_network_plot.eps")
 # Prepare direct edges (those involving "No Acupoint")
 edges_direct <- data.frame(
   from = gsub(":.*", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),

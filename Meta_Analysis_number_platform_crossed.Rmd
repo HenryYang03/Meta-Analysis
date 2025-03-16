@@ -12,6 +12,8 @@ library(readxl)
 library(ggplot2)
 library(netmeta)
 library(igraph)
+library(dmetar)
+library(Cairo)
 ```
 
 #### number_platform_crossed
@@ -108,14 +110,29 @@ summary(meta_analysis_number_platform_crossed)
 ```
 
 ```{r}
+postscript("number_of_platfrom_crossed_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(meta_analysis_number_platform_crossed,
        studlab = TRUE,
        textpos = 4,
-       leftcols = c("studlab", "effect", "ci"),
-       leftlabs = c("Paper id | Control Group | Age(month) | Acupoint", "SMD", "95% CI"),
-       colgap.left = "8mm",
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
        rightcols = c("w.random"),
        rightlabs = c("Weight"))
+```
+
+##### Outliers
+
+```{r}
+find.outliers(meta_analysis_number_platform_crossed)
+```
+
+```{r}
+meta_analysis_number_platform_crossed.inf <- InfluenceAnalysis(meta_analysis_number_platform_crossed, random = TRUE)
+
+plot(meta_analysis_number_platform_crossed.inf, "baujat")
+plot(meta_analysis_number_platform_crossed.inf, "es")
+plot(meta_analysis_number_platform_crossed.inf, "i2")
 ```
 
 ```{r}
@@ -132,7 +149,7 @@ funnel(meta_analysis_number_platform_crossed,
 metabias(meta_analysis_number_platform_crossed, method.bias = "linreg", k.min = 7)
 ```
 
-t```{r}
+```{r}
 trimfill(meta_analysis_number_platform_crossed)
 ```
 
@@ -204,10 +221,16 @@ summary(netmeta_analysis)
 netgraph(netmeta_analysis)
 
 # Create a forest plot for the network meta-analysis results
+postscript("number_platform_crossed_network_forest_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(netmeta_analysis)
 ```
 
+
+
+
+
 ```{r}
+cairo_ps("number_platform_crossed_network_plot.eps")
 # Prepare direct edges (those involving "No Acupoint")
 edges_direct <- data.frame(
   from = gsub(":.*", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),

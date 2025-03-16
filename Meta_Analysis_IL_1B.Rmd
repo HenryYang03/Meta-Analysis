@@ -13,6 +13,8 @@ library(readxl)
 library(ggplot2)
 library(netmeta)
 library(igraph)
+library(dmetar)
+library(Cairo)
 ```
 
 #### IL-1B(mRNA)
@@ -112,14 +114,30 @@ summary(meta_analysis_IL_1B)
 ```
 
 ```{r}
+postscript("IL_1B_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(meta_analysis_IL_1B,
        studlab = TRUE,
        textpos = 4,
-       leftcols = c("studlab", "effect", "ci"),
-       leftlabs = c("Paper id | Control Group | Age(month) | Acupoint", "SMD", "95% CI"),
-       colgap.left = "8mm",
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
        rightcols = c("w.random"),
        rightlabs = c("Weight"))
+```
+
+##### Outliers
+
+```{r}
+postscript("Outlier_IL_1B.eps", width = 15, height = 10, horizontal = FALSE, onefile = FALSE, paper = "special")
+find.outliers(meta_analysis_IL_1B)
+```
+
+```{r}
+meta_analysis_IL_1B.inf <- InfluenceAnalysis(meta_analysis_IL_1B, random = TRUE)
+
+plot(meta_analysis_IL_1B.inf, "baujat")
+plot(meta_analysis_IL_1B.inf, "es")
+plot(meta_analysis_IL_1B.inf, "i2")
 ```
 
 ```{r}
@@ -172,6 +190,7 @@ summary(netmeta_analysis)
 netgraph(netmeta_analysis)
 
 # Create a forest plot for the network meta-analysis results
+postscript("IL_1B_network_forest_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(netmeta_analysis)
 ```
 
@@ -184,6 +203,7 @@ dev.off()
 
 
 ```{r}
+cairo_ps("IL_1B_network_plot.eps")
 # Prepare direct edges (those involving "No Acupoint")
 edges_direct <- data.frame(
   from = gsub(":.*", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),

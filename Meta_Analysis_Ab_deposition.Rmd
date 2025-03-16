@@ -13,6 +13,8 @@ library(readxl)
 library(ggplot2)
 library(netmeta)
 library(igraph)
+library(dmetar)
+library(Cairo)
 ```
 
 #### Ab_deposition
@@ -46,7 +48,7 @@ for (subdir in subdirs) {
     control_Ab_deposition_single <- data_Ab_deposition_single %>% filter(treatment_group %in% control_groups)
     treatment_Ab_deposition_single <- data_Ab_deposition_single %>% filter(treatment_group %in% treatment_groups)
       
-    # Append the data to the respective data frames
+    # Append the data to the respective data frames4
     control_data_Ab_deposition <- rbind(control_data_Ab_deposition, control_Ab_deposition_single)
     treatment_data_Ab_deposition <- rbind(treatment_data_Ab_deposition, treatment_Ab_deposition_single)
     }
@@ -95,13 +97,24 @@ smd_data_Ab_deposition <- smd_data_Ab_deposition[
 smd_data_Ab_deposition
 ```
 
+```{r}
+smd_data_Ab_deposition$brain_area_group <- 
+                                         ifelse(smd_data_Ab_deposition$brain_area == "Ent", "Entorhinal Cortex",
+                                         ifelse(smd_data_Ab_deposition$brain_area %in% c("hip", "CA1", "DG"), "General Hippocampus",
+                                         ifelse(smd_data_Ab_deposition$brain_area %in% c("PFC", "mPFC"), "Prefrontal Cortex",
+                                         ifelse(smd_data_Ab_deposition$brain_area %in% c("Cortex", "PtA"), "General Cortex", NA))))
+
+table(smd_data_Ab_deposition$brain_area_group)
+```
+
+
 #####  Use Meta-Analysis package
 ```{r}
 meta_analysis_Ab_deposition <- metagen(
   smd, 
   se_smd, 
   data = smd_data_Ab_deposition,
-  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, brain_area,  sep = "  |  "),
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, brain_area,  sep = " | "),
   sm = "SMD",
   method.tau = "DL",   
   comb.fixed = FALSE,  
@@ -111,16 +124,94 @@ summary(meta_analysis_Ab_deposition)
 ```
 
 ```{r}
-pdf("Ab_deposition_forest_plot_output.pdf", width = 15, height = 15)
+#postscript("Ab_deposition_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+postscript("Ab_deposition_forest_plot_output.eps")
 forest(meta_analysis_Ab_deposition,
        studlab = TRUE,
        textpos = 4,
-       leftcols = c("studlab", "effect", "ci"),
-       leftlabs = c("Paper id | Control Group | age(month) | Acupoint | Brain area", "SMD", "95% CI"),
-       colgap.left = "8mm",
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "brain_area", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "brain", "SMD", "95% CI"),
+       colgap.left = "5mm",
        rightcols = c("w.random"),
        rightlabs = c("Weight"))
+dev.off()
 ```
+
+##### Subgroup Analysis
+
+```{r}
+update(meta_analysis_Ab_deposition,subgroup = brain_area_group,tau.common = FALSE)
+```
+
+```{r}
+postscript("General_Hippocampus_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_Ab_deposition, 
+                   subset = (brain_area_group == "General Hippocampus")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "brain_area", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "brain", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+
+# Prefrontal Cortex
+postscript("Prefrontal_Cortex_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_Ab_deposition, 
+                   subset = (brain_area_group == "Prefrontal Cortex")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "brain_area", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "brain", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+
+# General Cortex
+postscript("General_Cortex_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_Ab_deposition, 
+                   subset = (brain_area_group == "General Cortex")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "brain_area", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "brain", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+
+# Entorhinal Cortex
+postscript("Entorhinal_Cortex_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_Ab_deposition, 
+                   subset = (brain_area_group == "Entorhinal Cortex")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "brain_area", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "brain", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+```
+
+##### Outliers
+
+```{r}
+find.outliers(meta_analysis_Ab_deposition)
+```
+
+```{r}
+postscript("leave_Ab_deposition.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+meta_analysis_Ab_deposition.inf <- InfluenceAnalysis(meta_analysis_Ab_deposition, random = TRUE)
+
+#plot(meta_analysis_Ab_deposition.inf, "baujat")
+plot(meta_analysis_Ab_deposition.inf, "es")
+#plot(meta_analysis_Ab_deposition.inf, "i2")
+dev.off()
+```
+
 
 ```{r}
 funnel(meta_analysis_Ab_deposition,
@@ -175,6 +266,7 @@ summary(netmeta_analysis)
 netgraph(netmeta_analysis)
 
 # Create a forest plot for the network meta-analysis results
+postscript("Ab_deposition_network_forest_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
 forest(netmeta_analysis)
 ```
 
@@ -187,6 +279,7 @@ dev.off()
 
 
 ```{r}
+cairo_ps("Ab_deposition_network_plot.eps")
 # Prepare direct edges (those involving "No Acupoint")
 edges_direct <- data.frame(
   from = gsub(":.*", "", netsplit_result$comparison[grep("No Acupoint", netsplit_result$comparison)]),

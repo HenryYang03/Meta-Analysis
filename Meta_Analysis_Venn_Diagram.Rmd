@@ -7,6 +7,8 @@ date: "2024-09-03"
 
 ```{r}
 library(ggVennDiagram)
+library(ggplot2)
+library(Cairo)
 ```
 
 ```{r}
@@ -17,8 +19,9 @@ GFAP = c(5, 9, 13, 19, 28)
 ```
 
 ```{r}
+cairo_ps("Biomarker_Venn.eps", width = 15, height = 12)
 biomarkers <- list(Ab_deposition, IL_1B, Microglia, GFAP)
-ggVennDiagram(biomarkers, category.names = c("Abeta", "IL-1B", "Microglia", "GFAP")) +
+ggVennDiagram(biomarkers, category.names = c("Abeta", "IL-1B", "Iba-1", "GFAP")) +
   scale_fill_gradient(low = "#F4FAFE", high = "#4981BF")
 ```
 
@@ -31,6 +34,7 @@ Escape_Latency = c(3, 4, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 20, 21, 22
 ```
 
 ```{r}
+cairo_ps("Behavioral_Venn.eps", width = 15, height = 12)
 behaviorals <- list(Discrimination_index, Time_spent_in_target_quadrant, Number_platform_crossed, Escape_Latency)
 ggVennDiagram(behaviorals, category.names = c("Discrimination idx", "Time spent in target quadrant", "Number platform crossed", "Escape Latency")) +
   scale_fill_gradient(low = "#F4FAFE", high = "#4981BF")
