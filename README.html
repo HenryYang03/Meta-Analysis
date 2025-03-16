@@ -354,9 +354,9 @@ display: none;
 
 <div id="meta-analysis" class="section level1">
 <h1>Meta-Analysis</h1>
-<p>This repository contains the code files for the paper: Effect of
-Electro-Acupuncture on Alzheimer’s Disease Transgenic Mice: A
-Meta-Analysis and Systematic Review</p>
+<p>This repository contains the code files for the paper: Evaluating the
+potential of acupuncture for Alzheimer’s disease treatment: A
+meta-analysis and systematic review of mouse model studies</p>
 <hr />
 <div id="requirements" class="section level2">
 <h2>Requirements</h2>
@@ -371,7 +371,7 @@ Meta-Analysis and Systematic Review</p>
 <h3>R Libraries</h3>
 <p>Before running the <code>.Rmd</code> file, ensure you have the
 following libraries installed:</p>
-<pre class="r"><code>install.packages(c(&quot;meta&quot;, &quot;metafor&quot;, &quot;metasens&quot;, &quot;dplyr&quot;, &quot;readxl&quot;, &quot;ggplot2&quot;, &quot;netmeta&quot;, &quot;igraph&quot;))</code></pre>
+<pre class="r"><code>install.packages(c(&quot;meta&quot;, &quot;metafor&quot;, &quot;metasens&quot;, &quot;dplyr&quot;, &quot;readxl&quot;, &quot;ggplot2&quot;, &quot;netmeta&quot;, &quot;igraph&quot;, &quot;dmetar&quot;, &quot;Cairo&quot;))</code></pre>
 <hr />
 </div>
 </div>
@@ -379,9 +379,10 @@ following libraries installed:</p>
 <h2>How to Use</h2>
 <div id="set-up-the-data-directory" class="section level3">
 <h3>Set Up the Data Directory</h3>
-<p>The RMarkdown files rely on datasets located in the
+<p>The RMarkdown files for each outcome variable relies on
 <code>data_dir</code> variable. Set the data_dir path to be:</p>
 <pre><code>Notes and data for listed articles</code></pre>
+<p>which is provided in the repo.</p>
 <hr />
 </div>
 </div>
@@ -390,12 +391,6 @@ following libraries installed:</p>
 <div id="meta-analysis-outputs" class="section level3">
 <h3>Meta-Analysis Outputs</h3>
 <ul>
-<li><strong>Summary Statistics</strong>:
-<ul>
-<li>Standardized Mean Difference (SMD)</li>
-<li>Pooled Standard Deviation</li>
-<li>Standard Error</li>
-</ul></li>
 <li><strong>Forest Plot</strong>: Visualizes meta-analysis results.</li>
 <li><strong>Funnel Plot</strong>: Identifies potential publication
 bias.</li>

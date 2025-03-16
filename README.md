@@ -1,5 +1,5 @@
 # Meta-Analysis
-This repository contains the code files for the paper: Effect of Electro-Acupuncture on Alzheimer’s Disease Transgenic Mice: A Meta-Analysis and Systematic Review
+This repository contains the code files for the paper: Evaluating the potential of acupuncture for Alzheimer’s disease treatment: A meta-analysis and systematic review of mouse model studies
 
 ---
 
@@ -12,7 +12,7 @@ This repository contains the code files for the paper: Effect of Electro-Acupunc
 ### R Libraries
 Before running the `.Rmd` file, ensure you have the following libraries installed:
 ```r
-install.packages(c("meta", "metafor", "metasens", "dplyr", "readxl", "ggplot2", "netmeta", "igraph"))
+install.packages(c("meta", "metafor", "metasens", "dplyr", "readxl", "ggplot2", "netmeta", "igraph", "dmetar", "Cairo"))
 ```
 
 ---
@@ -20,20 +20,17 @@ install.packages(c("meta", "metafor", "metasens", "dplyr", "readxl", "ggplot2", 
 ## How to Use
 
 ### Set Up the Data Directory
-The RMarkdown files rely on datasets located in the `data_dir` variable. Set the data_dir path to be:
+The RMarkdown files for each outcome variable relies on `data_dir` variable. Set the data_dir path to be:
 ```
 Notes and data for listed articles
 ```
+which is provided in the repo.
 
 ---
 
 ## Outputs
 
 ### Meta-Analysis Outputs
-- **Summary Statistics**:
-  - Standardized Mean Difference (SMD)
-  - Pooled Standard Deviation
-  - Standard Error
 - **Forest Plot**: Visualizes meta-analysis results.
 - **Funnel Plot**: Identifies potential publication bias.
 - **Bias Assessment**: Performed using the `metabias` and `trimfill` functions.
