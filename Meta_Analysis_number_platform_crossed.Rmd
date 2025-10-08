@@ -27,7 +27,7 @@ treatment_data_number_platform_crossed <- data.frame()
 
 for (subdir in subdirs) {
   # Define the path to the Ab protein deposition file
-  number_platform_crossed_file_path <- file.path(subdir, "Long_format_number_platform_crossed.xlsx")
+  number_platform_crossed_file_path <- file.path(subdir,  "Long_format_number_platform_crossed.xlsx")
   
   # Check if the file exists
   if (file.exists(number_platform_crossed_file_path)) {
@@ -93,6 +93,33 @@ smd_data_number_platform_crossed <- smd_data_number_platform_crossed[
 smd_data_number_platform_crossed
 ```
 
+```{r}
+smd_data_number_platform_crossed$acupoint_group <- ifelse(
+  grepl("ST", smd_data_number_platform_crossed$acupoint_treatment),
+  "ST",
+  "GV"
+)
+
+table(smd_data_number_platform_crossed$acupoint_group)
+```
+
+```{r}
+smd_data_number_platform_crossed_GV <- smd_data_number_platform_crossed[smd_data_number_platform_crossed$acupoint_group == "GV", ]
+
+smd_data_number_platform_crossed_GV
+```
+
+
+```{r}
+smd_data_number_platform_crossed_GV$model_group <- ifelse(
+  grepl("5xFAD", smd_data_number_platform_crossed_GV$treatment_group),
+  "5xFAD",
+  "APP/PS1 and cDKO"
+)
+
+smd_data_number_platform_crossed_GV
+```
+
 
 #####  Use Meta-Analysis package
 ```{r}
@@ -119,6 +146,20 @@ forest(meta_analysis_number_platform_crossed,
        colgap.left = "5mm",
        rightcols = c("w.random"),
        rightlabs = c("Weight"))
+```
+
+```{r}
+meta_analysis_number_platform_crossed_GV <- metagen(
+  smd, 
+  se_smd, 
+  data = smd_data_number_platform_crossed_GV,
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, sep = "  |  "),
+  sm = "SMD",
+  method.tau = "DL",   
+  comb.fixed = FALSE,  
+  comb.random = TRUE
+)
+summary(meta_analysis_number_platform_crossed_GV)
 ```
 
 ##### Outliers
@@ -179,6 +220,69 @@ funnel.limitmeta(lmeta_number_platform_crossed,
                  pch = 21, # Use filled circles
                  cex = 1.5) # Increase point size)
 ```
+
+#### Subgroup Meta-Analysis
+
+```{r}
+update(meta_analysis_number_platform_crossed,subgroup = acupoint_group,tau.common = FALSE)
+```
+
+```{r}
+postscript("ST_number_platform_corssed_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_number_platform_crossed, 
+                   subset = (acupoint_group == "ST")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+
+postscript("GV_number_platform_corssed_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_number_platform_crossed, 
+                   subset = (acupoint_group == "GV")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment","effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+```
+
+```{r}
+update(meta_analysis_number_platform_crossed_GV,subgroup = model_group,tau.common = FALSE)
+```
+
+```{r}
+postscript("GV_5xFAD_number_platform_corssed_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_number_platform_crossed_GV, 
+                   subset = (model_group == "5xFAD")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+
+postscript("GV_APP_PS1_number_platform_corssed_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_number_platform_crossed_GV, 
+                   subset = (model_group == "APP/PS1 and cDKO")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment","effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+```
+
 
 #### Network Meta-Analysis
 

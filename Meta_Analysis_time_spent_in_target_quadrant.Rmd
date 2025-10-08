@@ -136,6 +136,57 @@ plot(meta_analysis_time_spend_in_target_quadrant.inf, "i2")
 ```
 
 ```{r}
+setEPS()
+postscript("time_spent_I2.eps",
+           width = 10, height = 5, onefile = FALSE,
+           horizontal = FALSE, paper = "special")
+
+plot(meta_analysis_time_spend_in_target_quadrant.inf, "i2")
+```
+
+
+```{r}
+smd_data_filtered <- subset(smd_data_time_spend_in_target_quadrant, paper_id != 18)
+```
+
+```{r}
+smd_data_filtered$acupoint_group <- ifelse(
+  grepl("ST", smd_data_filtered$acupoint_treatment),
+  "ST",
+  "GV"
+)
+
+table(smd_data_filtered$acupoint_group)
+```
+
+```{r}
+meta_analysis_time_spend_in_target_quadrant_filtered <- metagen(
+  smd,
+  se_smd,
+  data = smd_data_filtered,
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, sep = " | "),
+  sm = "SMD",
+  method.tau = "DL",
+  common = FALSE,
+  random = TRUE 
+)
+
+meta_analysis_time_spend_in_target_quadrant_filtered
+```
+
+```{r}
+postscript("filtered_time_spent_in_target_quadrant_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(meta_analysis_time_spend_in_target_quadrant_filtered,
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+```
+
+```{r}
 funnel(meta_analysis_time_spend_in_target_quadrant,
        xlab = "Standardised Mean Difference",
        ylab = "Standard Error",
@@ -144,6 +195,39 @@ funnel(meta_analysis_time_spend_in_target_quadrant,
        pch = 21, # Use filled circles
        cex = 1.5) # Increase point size
 ```
+
+##### Subgroup Analysis
+
+```{r}
+update(meta_analysis_time_spend_in_target_quadrant_filtered,subgroup = acupoint_group,tau.common = FALSE)
+```
+
+```{r}
+postscript("ST_time_spend_in_target_quadrant_filtered_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_time_spend_in_target_quadrant_filtered, 
+                   subset = (acupoint_group == "ST")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+
+postscript("GV_time_spend_in_target_quadrant_filtered_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(update(meta_analysis_time_spend_in_target_quadrant_filtered, 
+                   subset = (acupoint_group == "GV")),
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment","effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+```
+
 
 ```{r}
 metabias(meta_analysis_time_spend_in_target_quadrant, method.bias = "linreg")

@@ -1,0 +1,122 @@
+---
+title: "Meta_Analysis_ptau"
+author: "Mohan Yang"
+date: "2025-09-29"
+output: html_document
+---
+
+```{r}
+library(meta)
+library(metafor)
+library(metasens)
+library(dplyr)
+library(readxl)
+library(ggplot2)
+library(netmeta)
+library(igraph)
+library(dmetar)
+library(Cairo)
+```
+
+#### ptau
+##### Import dataset
+```{r}
+data_dir <- "/Users/mohanyang/Desktop/Meta-Analysis/Notes and data for listed articles"
+subdirs <- list.dirs(data_dir, recursive = FALSE)
+
+# dataframe to store final results
+control_data_ptau <- data.frame()
+treatment_data_ptau <- data.frame()
+
+for (subdir in subdirs) {
+  # Define the path to the ptau deposition file
+  ptau_file_path <- file.path(subdir, "Long_format_ptau.xlsx")
+    
+  # Check if the file exists
+  if (file.exists(ptau_file_path)) {
+    # Read the data from the file
+    data_ptau_single <- read_excel(ptau_file_path)
+    
+  # State control groups and treatment groups
+  control_groups <- c("5xFAD", "5xFAD+shWnt5a", "APP/PS1", "5xFAD/3xTg", "3xTg", "cDKO")
+  treatment_groups <- c("5xFAD+EA", "5xFAD+shWnt5a+EA", "APP/PS1+EA", "5xFAD/3xTg+EA", "APP/PS1+MA", "3xTg+EA", "cDKO+EA")
+      
+  # Filter data for control and treatment groups
+  control_ptau_single <- data_ptau_single %>% filter(treatment_group %in% control_groups)
+  treatment_ptau_single <- data_ptau_single %>% filter(treatment_group %in% treatment_groups)
+      
+  # Append the data to the respective data frames4
+  control_data_ptau <- rbind(control_data_ptau, control_ptau_single)
+  treatment_data_ptau <- rbind(treatment_data_ptau, treatment_ptau_single)
+  }
+}
+```
+
+```{r}
+control_data_ptau
+```
+
+```{r}
+treatment_data_ptau
+```
+
+#####  Get the difference data between the base group and control group
+```{r}
+# Modify the treatment_group in the treatment data to remove "+EA" for inner join purpose
+treatment_data_ptau <- treatment_data_ptau %>%
+  mutate(treatment_group = gsub("\\+EA", "", treatment_group))
+# Use inner_join to merge the data frames by paper_id, treatment_group, and brain_area
+merged_data_ptau <- inner_join(control_data_ptau, treatment_data_ptau, 
+                          by = c("paper_id", "treatment_group", "ptau_site", "age(month)"), 
+                          suffix = c("_control", "_treatment"))
+
+smd_data_ptau <- merged_data_ptau %>% 
+  mutate(
+    sd_pooled = sqrt(((sample_size_control - 1) * sd_control^2 +
+                      (sample_size_treatment - 1) * sd_treatment^2) /
+                     (sample_size_control + sample_size_treatment - 2)),
+    
+    smd = (mean_treatment - mean_control) / sd_pooled,
+    
+    se_smd = sqrt((sample_size_control + sample_size_treatment) /
+                  (sample_size_control * sample_size_treatment) +
+                  (smd^2) / (2 * (sample_size_control + sample_size_treatment)))
+  ) %>%
+  select(paper_id, treatment_group, ptau_site, 'age(month)', acupoint_treatment, smd, se_smd)
+```
+
+```{r}
+smd_data_ptau <- smd_data_ptau[
+  order(as.numeric(as.character(smd_data_ptau$paper_id))), 
+]
+
+smd_data_ptau
+```
+
+#####  Use Meta-Analysis package
+```{r}
+meta_analysis_ptau <- metagen(
+  smd, 
+  se_smd, 
+  data = smd_data_ptau,
+  studlab = paste(paper_id, treatment_group, as.character(`age(month)`), acupoint_treatment, ptau_site,  sep = " | "),
+  sm = "SMD",
+  method.tau = "DL",   
+  comb.fixed = FALSE,  
+  comb.random = TRUE
+)
+summary(meta_analysis_ptau)
+```
+
+```{r}
+postscript("ptau_forest_plot_output.eps", width = 15, height = 15, horizontal = FALSE, onefile = FALSE, paper = "special")
+forest(meta_analysis_ptau,
+       studlab = TRUE,
+       textpos = 4,
+       leftcols = c("paper_id", "treatment_group", "age(month)", "acupoint_treatment", "ptau_site", "effect", "ci"),
+       leftlabs = c("Paper id", "Control Group", "Age (month)", "Acupoint", "ptau site", "SMD", "95% CI"),
+       colgap.left = "5mm",
+       rightcols = c("w.random"),
+       rightlabs = c("Weight"))
+dev.off()
+```
